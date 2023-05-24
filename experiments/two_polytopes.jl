@@ -1,19 +1,26 @@
+include("../all_functions/functions.jl")
+include("../all_functions/plotting.jl")
 
 # # This is the case that two polyhedra.
 type = "polytopes"
-n = 4 # Dimensions
+n = 5 # Dimensions
 max_iterations = 100000  # Maximum number of iterations
 step_size = [Dict("step_type" => "open_loop", "ell" => ell) for ell in [2, 4, 6]]
 push!(step_size, Dict("step_type" => "line_search", "ell"=>""))
 
 
-num_vertices1 = 20  # Number of vertices for polytope 1
+num_vertices1 = 15  # Number of vertices for polytope 1
 num_vertices2 = 10  # Number of vertices for polytope 2
 
 
 # Generate random vertices for polytope 1, 2 within the range [a, b]
 polytope_vertices1 = vertices(n, 0, 30, num_vertices1)
 polytope_vertices2 = vertices(n, -10, 0, num_vertices2)
+
+# # eg: the case that two balls contact 
+# common_vertex = rand!(Vector{Float32}(undef,n))
+# push!(polytope_vertices1, common_vertex)
+# push!(polytope_vertices2, common_vertex)
 
 # Create polytope 1 and 2 using the vertex representation
 p1 = polyhedron(vrep(polytope_vertices1))

@@ -1,3 +1,6 @@
+include("../all_functions/functions.jl")
+include("../all_functions/plotting.jl")
+
 # # This is the case of a polytope and l2 ball.
 type = "tbd"
 # # Initial setting

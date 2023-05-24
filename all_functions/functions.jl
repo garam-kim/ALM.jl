@@ -154,9 +154,10 @@ function membership_oracle(members)
     if type == "balls"
         lmo1 = members["arg1"]; lmo2 = members["arg2"]
         distance = norm(lmo1.center - lmo2.center)
-        if distance == lmo1.radius + lmo2.radius
-            loc = "contact"
-            println("Two balls: contact at an one point")
+        # if the difference numerically 0
+        if abs(distance - (lmo1.radius + lmo2.radius)) < 10e-7
+            loc = "touch"
+            println("Two balls: touch at a one point")
         elseif distance < lmo1.radius + lmo2.radius
             loc = "intersect"
             println("Two balls: intersect")
@@ -168,9 +169,12 @@ function membership_oracle(members)
     elseif type == "polytopes"
         p1 = members["arg1"]; p2 = members["arg2"]
         points_intersect = npoints(intersect(p1, p2))
-        if points_intersect >= 1
+        if points_intersect > 1
             loc = "intersect"
             println("Two polytopes: intersect")
+        elseif points_intersect == 1
+            loc = "touch"
+            println("Two polytopes: touch at a one point")
         else
             loc = "disjoint"
             println("Two polytopes: disjoint")
