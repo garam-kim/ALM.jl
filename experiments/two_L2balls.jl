@@ -1,11 +1,14 @@
 # # Initial setting
 type = "balls"
-n = 6 # Number of dimensions
+n = 2 # Number of dimensions
 max_iterations = 1e5  # Maximum number of iterations
+
+step_size = [Dict("step_type" => "open_loop", "ell" => ell) for ell in [2, 4, 6]]
+push!(step_size, Dict("step_type" => "line_search", "ell"=>""))
 
 # Radius for the Lp-norm
 r1 = rand(1:10) 
-center1 = rand!(Vector{Float32}(undef,n),-3:5)
+center1 = rand!(Vector{Float32}(undef,n),-1:5)
 r2 = rand(1:6)
 center2 = rand!(Vector{Float32}(undef,n),-5:10)
 
@@ -18,17 +21,13 @@ lmo2 = shiftedL2ball(r2, center2)
 x0 = FrankWolfe.compute_extreme_point(lmo1, lmo1.center + rand(n) * lmo1.radius)
 y0 = FrankWolfe.compute_extreme_point(lmo2, lmo2.center - rand(n) * lmo2.radius)
 
-# Perform alternative linear minimization optimization with the given initial points, LMOs, and parameters
-xt, yt, loss = Alternative_Frank_Wolfe(x0, y0, lmo1, lmo2, max_iterations, f)
+# Perform the experiments
+data = Dict() # Initialize data
+data = run_experiment(x0, y0, lmo1, lmo2, max_iterations, f, step_size)
 
-# Find the optimal points
-xstar, ystar = find_optimal(xt, yt, loss)
-
-# Evaluate the primal function over iterations
-primal = evaluate_primal(max_iterations, xt, yt, xstar, ystar)
 members = Dict("type" => type, "arg1" => lmo1, "arg2" => lmo2)
-# membership_oracle(members)
-println("convergence rate (log): ", (log10(primal[argmin(primal)])-log10(primal[argmax(primal)]))/(log10(max_iterations)))
+# println("convergence rate (log): ", (log10(primal[argmin(primal)])-log10(primal[argmax(primal)]))/(log10(max_iterations)))
 
-# Plot the L2 balls (only n = 2) and min primal gap
-balls_plotter(xt, yt, lmo1, lmo2, primal, members)
+# Plot the min primal gaps
+primal_gap_plotter(data, members)
+

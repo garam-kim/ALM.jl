@@ -45,29 +45,60 @@ end
 
 
 
-function Alternative_Frank_Wolfe(x0, y0, lmo1, lmo2, max_iterations,f)
-   
+function Alternative_Frank_Wolfe(x0, y0, lmo1, lmo2, max_iterations, f, step)
+    
     # Initialize empty lists to store the loss, x points, and y points
     loss = Float64[]
     xt = []; yt = []
-
     x = copy(x0); y = copy(y0)
+    
+    if step["step_type"] == "open_loop"
+        ell = step["ell"]
 
-    for t = 0:max_iterations - 1
-        # Store the current loss, x and y points
-        push!(loss, f(x,y)) 
-        push!(xt, x); push!(yt, y)
+        for t = 0:max_iterations - 1
+            # Store the current loss, x and y points
+            push!(loss, f(x,y)) 
+            push!(xt, x); push!(yt, y)
 
-        # Compute the extreme point u using the lmo1 oracle and update x
-        u = FrankWolfe.compute_extreme_point(lmo1, x - y)
-        x += 2/(t + 2) * (u - x)
+            # Compute the extreme point u using the lmo1 oracle and update x
+            u = FrankWolfe.compute_extreme_point(lmo1, x - y)
+            x += ell/(t + ell) * (u - x)
 
-        # Compute the extreme point v using the lmo2 oracle and update y
-        v = FrankWolfe.compute_extreme_point(lmo2, y - x)
-        y += 2/(t + 2) * (v - y)
+            # Compute the extreme point v using the lmo2 oracle and update y
+            v = FrankWolfe.compute_extreme_point(lmo2, y - x)
+            y += ell/(t + ell) * (v - y)
+        end
+    elseif step["step_type"] == "line_search"
+        for t = 0:max_iterations - 1
+            # Store the current loss, x and y points
+            push!(loss, f(x,y)) 
+            push!(xt, x); push!(yt, y)
+
+            # Compute the extreme point u using the lmo1 oracle and update x
+            u = FrankWolfe.compute_extreme_point(lmo1, x - y)
+            eta_x = dot(x - y, x - u)/dot(u - x, u - x)
+            x += eta_x * (u - x)
+
+            # Compute the extreme point v using the lmo2 oracle and update y
+            v = FrankWolfe.compute_extreme_point(lmo2, y - x)
+            eta_y = dot(y - x, y - v)/dot(y - v, y - v)
+            y += eta_y * (v - y)
+        end
     end
-
     return xt, yt, loss
+end
+
+function run_experiment(x0, y0, lmo1, lmo2, max_iterations, f, step_size)
+    data = []
+    for step in step_size
+        label = step["step_type"] * string(step["ell"])
+        init = Dict()
+        init["step_type"] = step["step_type"]
+        init["ell"] = step["ell"]
+        init["xt"], init["yt"], init["loss"] = Alternative_Frank_Wolfe(x0, y0, lmo1, lmo2, max_iterations, f, step)
+        push!(data, init)
+    end
+    return data
 end
 
 
@@ -83,23 +114,21 @@ end
 
 
 
-function evaluate_primal(max_iterations, xt, yt, xstar, ystar)
+function evaluate_primal(xt, yt, xstar, ystar)
     primal = Float64[]
-    function evaluate_loss(t, xt, yt, xstar, ystar)
-        return f(xt[t], yt[t]) - f(xstar, ystar)
-    end
-
+    max_iterations = length(xt)
     for t in 1:Int(max_iterations - 1000)
-        push!(primal, evaluate_loss(t, xt, yt, xstar, ystar))
+        current_primal = f(xt[t], yt[t]) - f(xstar, ystar)
+        push!(primal, current_primal)
     end
-    
-    if length(findall(primal.== 0)) >= 10
+    deleteat!(primal, primal .== 0.0)
+
+    if length(findall(primal.== 0.0)) >= 10
         idx = findfirst(primal.== 0.0)
         return primal[1:idx - 1]
     else
         return primal
     end
-
 end
 
 struct shiftedL2ball <: FrankWolfe.LinearMinimizationOracle

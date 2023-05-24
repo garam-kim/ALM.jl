@@ -9,7 +9,7 @@ using LaTeXStrings
 
 
 # # Plot
-function only_min(primal::Vector{Float64})
+function only_min(primal)
     new_data = Float64[]
     push!(new_data, primal[1])
     for t in 2:length(primal)
@@ -20,10 +20,52 @@ function only_min(primal::Vector{Float64})
             push!(new_data, new_data[end])
         end
     end
+    if length(findall(new_data .== new_data[end])) >= 100
+        idx = findfirst(new_data .== new_data[end])
+        new_data = new_data[1:idx]
+    end
     return new_data
 end
 
 
+function primal_gap_plotter(data, members)
+    g = plot(legend=:topright,xtickfontsize = 10, ytickfontsize = 10, ylabelfontsize =15, linewidth = 2)
+    colors = [:blue, :orange, :green, :red]
+    n = length(data[1]["xt"][1])
+    # for (idx, current_data) in enumerate(data)
+    for (idx, current_data) in enumerate(data)
+        if current_data["step_type"] == "line_search"
+            current_label = current_data["step_type"]
+        else
+            current_label = current_data["step_type"]*", "*L"\ell="*string(current_data["ell"])
+        end
+
+        xt = current_data["xt"]
+        yt = current_data["yt"]
+        loss = current_data["loss"]
+        xstar, ystar = find_optimal(xt, yt, loss) 
+        primal = evaluate_primal(xt, yt, xstar, ystar)
+        data[idx]["primal"] = primal
+        g = plot!(only_min(primal), xscale=:log10, yscale=:log10, linestyle=:dot, color = colors[idx], label = current_label,linewidth = 5);
+        println("current: ", current_label)
+    end
+    g = xlabel!("number of iterations")
+    g = ylabel!("min"*L"_{i} h_i")
+    plot(g)
+
+    if members["type"] == "balls"
+        address = "./experiments/figures/two_balls/"
+    elseif members["type"] == "polytopes"
+        address = "./experiments/figures/two_polytopes/"
+    else
+        address = "./experiments/figures/ball_polytope/"
+    end
+    filename = membership_oracle(members)*"_"*string(n)*"d"
+    savefig(address * filename * ".png")
+end
+
+
+# # Auxiliary functions for plot
 
 function polytopes_plotter(xt::Vector{Any}, yt::Vector{Any}, p1::DefaultPolyhedron, p2::DefaultPolyhedron, primal::Vector{Float64}, members)
     n = length(xt[1])
@@ -87,7 +129,7 @@ function l2_polytope_plotter(xt, yt, lmo, p, primal, type)
     savefig("./experiments/figures/ball_polytope/"*filename*".png")
 end
 
-function balls_plotter(xt, yt, lmo1, lmo2, primal, members)
+function balls_plotter(xt, yt, lmo1, lmo2, primal, members, step_size)
     n = length(xt[1])
     # Create a plot g1 for the loss values
     g1 = plot(only_min(primal), xscale=:log10, yscale=:log10, linestyle=:dot, color =:green);
@@ -116,6 +158,15 @@ function balls_plotter(xt, yt, lmo1, lmo2, primal, members)
     else
         plot(g1)
     end
-    filename = membership_oracle(members)*"_"*string(n)*"d"
-    savefig("./experiments/figures/two_balls/"*filename*".png")
+
+    if step_size["step_type"] == "line_search"
+        filename = membership_oracle(members)*"_line_search_"*string(n)*"d"
+        savefig("./experiments/figures/two_balls/"*filename*".png")
+    else
+        ell = step_size["ell"]
+        filename = membership_oracle(members)*"_open_loop("*string(ell)*")_"*string(n)*"d"
+        savefig("./experiments/figures/two_balls/"*filename*".png")
+    end
+
 end
+
