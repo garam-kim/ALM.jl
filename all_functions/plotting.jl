@@ -12,7 +12,7 @@ using LaTeXStrings
 function only_min(primal)
     new_data = Float64[]
     push!(new_data, primal[1])
-    for t in 2:length(primal)
+    for t in 1:length(primal)
         entry = primal[t]
         if entry < new_data[end]
             push!(new_data, entry)
@@ -29,9 +29,10 @@ end
 
 
 function primal_gap_plotter(data, members)
-    g = plot(legend=:topright,xtickfontsize = 10, ytickfontsize = 10, ylabelfontsize =15, linewidth = 2)
+    g = plot(legend=:topright, xtickfontsize = 10, ytickfontsize = 10, ylabelfontsize =15, linewidth = 2)
     colors = [:blue, :orange, :green, :red]
     n = length(data[1]["xt"][1])
+    max_iterations = length(data[1]["xt"])
     # for (idx, current_data) in enumerate(data)
     for (idx, current_data) in enumerate(data)
         if current_data["step_type"] == "line_search"
@@ -39,15 +40,20 @@ function primal_gap_plotter(data, members)
         else
             current_label = current_data["step_type"]*", "*L"\ell="*string(current_data["ell"])
         end
-
+        println("now: ", current_label)
         xt = current_data["xt"]
         yt = current_data["yt"]
+       
         loss = current_data["loss"]
         xstar, ystar = find_optimal(xt, yt, loss) 
-        primal = evaluate_primal(xt, yt, xstar, ystar)
+        primal = evaluate_primal(xt, yt, xstar, ystar, max_iterations)
+        # T = length(primal)        
+        # @assert norm(xt[T].-lmo1.center) - lmo1.radius < 10e-5 "wrong xt"
+        # @assert norm(yt[T].-lmo2.center) - lmo2.radius < 10e-5 "wrong yt"
+      
         data[idx]["primal"] = primal
         g = plot!(only_min(primal), xscale=:log10, yscale=:log10, linestyle=:dot, color = colors[idx], label = current_label,linewidth = 5);
-        println("current: ", current_label)
+        println("end")
     end
     g = xlabel!("number of iterations")
     g = ylabel!("min"*L"_{i} h_i")

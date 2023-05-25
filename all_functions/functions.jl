@@ -55,18 +55,20 @@ function Alternative_Frank_Wolfe(x0, y0, lmo1, lmo2, max_iterations, f, step)
     if step["step_type"] == "open_loop"
         ell = step["ell"]
 
-        for t = 0:max_iterations - 1
+        for t = 0:max_iterations - 1 
             # Store the current loss, x and y points
             push!(loss, f(x,y)) 
             push!(xt, x); push!(yt, y)
-
+            
+            eta = ell/(t + ell)
             # Compute the extreme point u using the lmo1 oracle and update x
             u = FrankWolfe.compute_extreme_point(lmo1, x - y)
-            x += ell/(t + ell) * (u - x)
+            x += eta * (u - x)
 
             # Compute the extreme point v using the lmo2 oracle and update y
             v = FrankWolfe.compute_extreme_point(lmo2, y - x)
-            y += ell/(t + ell) * (v - y)
+            y += eta * (v - y)
+
         end
     elseif step["step_type"] == "line_search"
         for t = 0:max_iterations - 1
@@ -74,24 +76,34 @@ function Alternative_Frank_Wolfe(x0, y0, lmo1, lmo2, max_iterations, f, step)
             push!(loss, f(x,y)) 
             push!(xt, x); push!(yt, y)
 
-            # Compute the extreme point u using the lmo1 oracle and update x
+            # # Compute the extreme point u using the lmo1 oracle and update x
             u = FrankWolfe.compute_extreme_point(lmo1, x - y)
-            eta_x = dot(x - y, x - u)/dot(u - x, u - x)
-            x += eta_x * (u - x)
 
-            # Compute the extreme point v using the lmo2 oracle and update y
+            # @assert norm(u.-lmo1.center) - lmo1.radius < 10e-5 "wrong vertex"
+            eta_x = min(max(dot(x - y, x - u)/dot(u - x, u - x), 0), 1)
+            x += eta_x * (u - x)
+            
+            # Compute the ext1reme point v using the lmo2 oracle and update y
             v = FrankWolfe.compute_extreme_point(lmo2, y - x)
-            eta_y = dot(y - x, y - v)/dot(y - v, y - v)
+
+            eta_y = min(max(dot(y - x, y - v)/dot(v-y, v-y), 0), 1)
             y += eta_y * (v - y)
+            
         end
     end
-    return xt, yt, loss
+    if length(findall(isnan.(loss).==true)) >= 5
+        idx = findfirst(isnan.(loss).==true)
+        @info "reach the optimum at the iteration "*string(idx)
+        return xt[1:idx - 1], yt[1:idx - 1], loss[1:idx - 1]
+    else
+        return xt, yt, loss
+    end
 end
 
 function run_experiment(x0, y0, lmo1, lmo2, max_iterations, f, step_size)
     data = []
     for step in step_size
-        label = step["step_type"] * string(step["ell"])
+        # label = step["step_type"] * string(step["ell"])
         init = Dict()
         init["step_type"] = step["step_type"]
         init["ell"] = step["ell"]
@@ -114,21 +126,16 @@ end
 
 
 
-function evaluate_primal(xt, yt, xstar, ystar)
+function evaluate_primal(xt, yt, xstar, ystar, max_iterations)
     primal = Float64[]
-    max_iterations = length(xt)
-    for t in 1:Int(max_iterations - 1000)
+    T = length(xt)
+    for t in 1:min(T, Int(max_iterations - 1000))
         current_primal = f(xt[t], yt[t]) - f(xstar, ystar)
         push!(primal, current_primal)
     end
-    deleteat!(primal, primal .== 0.0)
-
-    if length(findall(primal.== 0.0)) >= 10
-        idx = findfirst(primal.== 0.0)
-        return primal[1:idx - 1]
-    else
-        return primal
-    end
+    primal[primal.==0.0] .= 10e-17
+    @assert sum(primal.<0) == 0 "primal should be positive"
+    return primal
 end
 
 struct shiftedL2ball <: FrankWolfe.LinearMinimizationOracle
@@ -145,6 +152,7 @@ function FrankWolfe.compute_extreme_point(lmo::shiftedL2ball, direction; v=simil
     else
         @. v = -lmo.radius * direction / dir_norm
     end
+        
     return v + lmo.center
 end
 
