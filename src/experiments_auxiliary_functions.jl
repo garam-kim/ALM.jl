@@ -36,7 +36,7 @@ function run_experiment(x0, y0, lmo1, lmo2, max_iterations, f, step_size)
         init = Dict()
         init["step_type"] = step["step_type"]
         init["ell"] = step["ell"]
-        init["xt"], init["yt"], init["loss"], init["ut"], init["vt"] = Alternative_linear_minimization(x0, y0, lmo1, lmo2, max_iterations, f, step)
+        init["xt"], init["yt"], init["loss"], init["ut"], init["vt"] = Alternating_linear_minimizations(x0, y0, lmo1, lmo2, max_iterations, f, step)
         push!(data, init)
         println("done")
     end

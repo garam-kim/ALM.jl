@@ -1,8 +1,8 @@
 using FrankWolfe
 using LinearAlgebra
 
-function Alternative_linear_minimization(x0, y0, lmo1, lmo2, max_iterations, f, step)
-   """Performs alternative linear minimization.
+function Alternating_linear_minimizations(x0, y0, lmo1, lmo2, max_iterations, f, step)
+   """Performs alternating linear minimizations.
 
    Args:
       x0: Vector{Float64}
@@ -44,9 +44,8 @@ function Alternative_linear_minimization(x0, y0, lmo1, lmo2, max_iterations, f, 
 
    if step["step_type"] == "open_loop"
       ell = step["ell"]
-      t = 0; dual_gap = [Inf, Inf]; dual_gap_P = Inf; dual_gap_Q = Inf;
+      t = 0; dual_gap = [Inf, Inf]; 
       while t <= max_iterations && sum(dual_gap) >= max(1e-10, eps(float(typeof(sum(dual_gap)))))
-         # while t <= max_iterations 
 
          # Store the current loss, x and y points
          push!(loss, f(x,y)); push!(xt, x); push!(yt, y); 
@@ -64,7 +63,7 @@ function Alternative_linear_minimization(x0, y0, lmo1, lmo2, max_iterations, f, 
          t+= 1
       end
    elseif step["step_type"] == "line_search"
-      t = 0; dual_gap = [Inf, Inf]; dual_gap_P = Inf; dual_gap_Q = Inf;
+      t = 0; dual_gap = [Inf, Inf]; 
       while t <= max_iterations && sum(dual_gap) >= max(1e-10, eps(float(typeof(sum(dual_gap)))))
          # Store the current loss, x and y points
          push!(loss, f(x,y)); push!(xt, x); push!(yt, y); 

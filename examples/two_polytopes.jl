@@ -1,6 +1,6 @@
 include("../src/feasible_region.jl")
 include("../src/experiments_auxiliary_functions.jl")
-include("../src/alternative_linear_minimization.jl")
+include("../src/alternating_linear_minimizations.jl")
 include("../src/auxiliary_functions.jl")
 include("../src/objective_function.jl")
 include("../src/plotting.jl")
