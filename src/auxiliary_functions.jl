@@ -1,10 +1,9 @@
-using Plots
 using Polyhedra
 using Random
 using FrankWolfe
 using LinearAlgebra
-using LaTeXStrings
 using DelimitedFiles
+include("../src/feasible_region.jl")
 
 # Generate a collection of random vertices
 function vertices(n, a, b, num_vertices)
@@ -86,15 +85,22 @@ function evaluate_primal(xt, yt, xstar, ystar, max_iterations)
 end
 
 
-function is_intersect(xstar, ystar)
+function is_intersect(xstar::Vector{Float64}, ystar::Vector{Float64})
     """
     When two optimums are close enough, decide that the sets intersect. Otherwise, disjoint.
     """
     if norm(xstar.-ystar) < 1e-4 println("intersect") else println("disjoint") end
 end
 
+function is_intersect(p1::DefaultPolyhedron, p2::DefaultPolyhedron)
+    """
+    When two optimums are close enough, decide that the sets intersect. Otherwise, disjoint.
+    """
+    if npoints(intersect(p1,p2))!=0 println("intersect") else println("disjoint") end
+end
 
-function find_location(star, polytope::DefaultPolyhedron)
+
+function find_location(star::Vector{Float64}, polytope::DefaultPolyhedron)
     """
     Find the location of a point in a polytope.
     """
@@ -108,29 +114,33 @@ function find_location(star, polytope::DefaultPolyhedron)
 end
 
 
-function find_location(star, lmo::shiftedL2ball)
+
+function find_location(star, lmo::shiftedl2ball)
     """
     Find the location of a point in a ball.
     """
-    if lmo.radius - norm(star.-lmo.center) > 1e-7
+    if lmo.radius - norm(star.-lmo.center) > 1e-5
         println("the optimum is in the interior")
-    elseif abs(lmo.radius - norm(star.-lmo.center)) <= 1e-7
+    elseif abs(lmo.radius - norm(star.-lmo.center)) <= 1e-5
         println("the optimum is on the border")
     else
         println("the optimum is in the exterior")
     end
 end
 
-function find_optimal_sets(data, lmo1, lmo2)
+function find_location(star, lmo::FrankWolfe.UnitSimplexOracle)
     """
-    Decide the location of the last iterates from all data.
+    Find the location of a point in a ball.
     """
-    for i in eachindex(data)
-        println("* "*data[i]["step_type"]*"_"*string(data[i]["ell"]))
-        find_location(data[i]["xt"][end], lmo1)
-        find_location(data[i]["yt"][end], lmo2)
-    end
+    # if lmo.radius - norm(star.-lmo.center) > 1e-5
+    #     println("the optimum is in the interior")
+    # elseif abs(lmo.radius - norm(star.-lmo.center)) <= 1e-5
+    #     println("the optimum is on the border")
+    # else
+    #     println("the optimum is in the exterior")
+    # end
 end
+
 
 
 function check(data, polytope::DefaultPolyhedron, flag::Int)
@@ -141,14 +151,32 @@ function check(data, polytope::DefaultPolyhedron, flag::Int)
     @assert [in.(data[i][entry][2:end], polytope) == ones(length(data[i][entry][2:end])) for i in eachindex(data)] ==ones(length(data)) "feasiblity error"
 end
 
-
-function check(data, lmo::shiftedL2ball, flag::Int)
+function check(data, lmo::shiftedl2ball, flag::Int)
     """
     Feasibility check, whether all iterates are in a given ball.
     """
     if flag == 1 entry = "xt" else entry = "yt" end
     @assert [mean(norm.(data[i][entry][2:end].-[lmo.center]) .- lmo.radius .< 10e-5) == 1 for i in eachindex(data)] ==ones(length(data)) "feasiblity error"
 end
+
+function check(data, lmo::shiftedUnitSimplex, flag::Int)
+    """
+    Feasibility check, whether all iterates are in a given ball.
+    """
+    if flag == 1 entry = "xt" else entry = "yt" end
+    @assert [sum(sum.(data[i][entry][1:end].-[lmo.center]).-lmo.radius) <  10e-5 for i in eachindex(data)]==ones(length(data)) "feasiblity error"
+end
+
+
+function check(data, lmo::FrankWolfe.UnitSimplexOracle, flag::Int)
+    """
+    Feasibility check, whether all iterates are in a given ball.
+    """
+    if flag == 1 entry = "xt" else entry = "yt" end
+    @assert [sum(sum.(data[i][entry][1:end]).-lmo.right_side) <  10e-5 for i in eachindex(data)]==ones(length(data)) "feasiblity error"
+end
+
+
 
 
 #### All function below are not used so far. 
@@ -230,4 +258,40 @@ function projection_standardSimplex(y, r)
     end
 
     return max.(y .- rho, 0)
+end
+
+function find_optimal_face(star, polytope::DefaultPolyhedron)
+    faces = [];
+    entry = findall(i -> abs(dot(hrep(polytope).halfspaces[i].a, star) - hrep(polytope).halfspaces[i].β) < 1e-7, collect(1:nhalfspaces(hrep(polytope))))
+    if length(entry) >= 1
+        for i in eachindex(entry)
+            push!(faces, hrep(polytope).halfspaces[i])
+        end
+        return faces
+    end
+end
+
+function find_parallel_faces(face1, face2)
+    for i in eachindex(face1)
+        for j in eachindex(face2)
+            if abs(dot(face1[i].a,face2[j].a)/(norm(face1[i].a)*norm(face2[j].a))) > 1-1e-7
+                println("i = ",i,", j = ",j)
+                println(face1[i].a./face2[j].a)
+                println(face1[i])
+                println(face2[j])
+            end
+        end
+    end
+end
+
+
+function find_optimal_sets(data, lmo1, lmo2)
+    """
+    Decide the location of the last iterates from all data.
+    """
+    for i in eachindex(data)
+        println("* "*data[i]["step_type"]*"_"*string(data[i]["ell"]))
+        find_location(data[i]["xt"][end], lmo1)
+        find_location(data[i]["yt"][end], lmo2)
+    end
 end

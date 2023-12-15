@@ -7,7 +7,7 @@ include("../src/experimental_settings.jl")
 ##############################
 
 
-# Initial setting.
+# Initial setting
 n = 100;  # Dimensions.
 max_iterations = 10^5+200; 
 
@@ -19,9 +19,9 @@ nu = [1, 0.8, 0.5, 0.2]; step = Dict("step_type" => "open-loop", "ell" => 2);
 
 
 # Compares the performance of different step-size rules and approximation errors for the relation between two sets.
-for loc in ["disjoint", "touch", "intersect"]
-   lmo1, lmo2, x0, y0 = build_two_l2balls_settings(n, loc);
-   filename = "two_l2balls_"*string(loc)*".png";
+for loc in ["disjoint", "touch"]
+   lmo1, lmo2, x0, y0 = build_l2_unitsimplex_settings(n, loc);
+   filename = "l2ball_UnitSimplex_"*string(loc)*".png";
 
    data = run_experiment(x0, y0, lmo1, lmo2, max_iterations, f, step_size);
    xstar, ystar = find_star(data);

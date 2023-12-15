@@ -15,14 +15,23 @@ end
 """
 Unit l2 ball scaled by radius and shifted by center.
 """
-struct shiftedL2ball <: FrankWolfe.LinearMinimizationOracle
+struct shiftedl2ball <: FrankWolfe.LinearMinimizationOracle
     radius :: Float64
     center :: Vector{Float64}
 end
- 
+
+"""
+Unit l1 ball scaled by radius and shifted by center.
+"""
+struct shiftedl1ball <: FrankWolfe.LinearMinimizationOracle
+    radius :: Float64
+    center :: Vector{Float64}
+end
 
 
 # # Technical replacements for different settings.
+
+
 function FrankWolfe.compute_extreme_point(lmo::shiftedUnitSimplex, direction; v=nothing, kwargs...)
    idx = argmin(direction)
    if direction[idx] < 0
@@ -31,7 +40,8 @@ function FrankWolfe.compute_extreme_point(lmo::shiftedUnitSimplex, direction; v=
    return FrankWolfe.ScaledHotVector(zero(Float64), idx, length(direction)) .+ lmo.center
 end
 
-function FrankWolfe.compute_extreme_point(lmo::shiftedL2ball, direction; v=similar(direction))
+
+function FrankWolfe.compute_extreme_point(lmo::shiftedl2ball, direction; v=similar(direction))
    dir_norm = norm(direction, 2)
    n = length(direction)
    # if direction numerically 0
@@ -43,6 +53,24 @@ function FrankWolfe.compute_extreme_point(lmo::shiftedL2ball, direction; v=simil
        
    return v + lmo.center
 end
+
+
+function FrankWolfe.compute_extreme_point(lmo::shiftedl1ball, direction; v=similar(direction))
+    idx = 0
+    v = -one(eltype(direction))
+    for i in eachindex(direction)
+        if abs(direction[i]) > v
+            v = abs(direction[i])
+            idx = i
+        end
+    end
+    sign_coeff = sign(direction[idx])
+    if sign_coeff == 0.0
+        sign_coeff -= 1
+    end
+    return FrankWolfe.ScaledHotVector(-lmo.radius * sign_coeff, idx, length(direction)) + lmo.center
+end
+
 
 
 

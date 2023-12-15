@@ -1,7 +1,7 @@
 using FrankWolfe
 using LinearAlgebra
 
-function Alternating_linear_minimizations(x0, y0, lmo1, lmo2, max_iterations, f, step)
+function Alternating_linear_minimizations(x0, y0, lmo1, lmo2, max_iterations, f, step, nu = 1)
    """Performs alternating linear minimizations.
 
    Args:
@@ -38,33 +38,32 @@ function Alternating_linear_minimizations(x0, y0, lmo1, lmo2, max_iterations, f,
 
    # Initialize empty lists to store the loss, x points, and y points
    loss = Float64[];
-   xt = []; yt = []; ut = []; vt = [];
+   xt = []; yt = []; ut = []; vt = []; 
 
    x = copy(x0); y = copy(y0);
-
-   if step["step_type"] == "open_loop"
-      ell = step["ell"]
+   if step["step_type"] == "open-loop"
+      ell = step["ell"]; 
       t = 0; dual_gap = [Inf, Inf]; 
-      while t <= max_iterations && sum(dual_gap) >= max(1e-10, eps(float(typeof(sum(dual_gap)))))
+      while t <= max_iterations && mean(dual_gap) >= max(1e-10, eps(float(typeof(sum(dual_gap)))))
+      # while t <= max_iterations
 
          # Store the current loss, x and y points
          push!(loss, f(x,y)); push!(xt, x); push!(yt, y); 
-         eta = ell/(t + ell);
-
+         eta = ell/(nu * t + ell);
          u = FrankWolfe.compute_extreme_point(lmo1, x - y);
          dual_gap[1] = dot(x, x - y) - dot(u, x - y);
          if dual_gap[1] > 1e-10 x += eta * (u - x) end
 
-         v = FrankWolfe.compute_extreme_point(lmo2, y - x);
-         dual_gap[2] = dot(y, y - x) - dot(v, y - x);
+         v = FrankWolfe.compute_extreme_point(lmo2, y - x); 
+         dual_gap[2] = 1/nu * (dot(y, y - x) - dot(v, y - x));
          if dual_gap[2] > 1e-10 y += eta * (v - y) end
 
          push!(ut, u); push!(vt, v);
          t+= 1
       end
-   elseif step["step_type"] == "line_search"
+   elseif step["step_type"] == "line-search"
       t = 0; dual_gap = [Inf, Inf]; 
-      while t <= max_iterations && sum(dual_gap) >= max(1e-10, eps(float(typeof(sum(dual_gap)))))
+      while t <= max_iterations && mean(dual_gap) >= max(1e-10, eps(float(typeof(sum(dual_gap)))))
          # Store the current loss, x and y points
          push!(loss, f(x,y)); push!(xt, x); push!(yt, y); 
 
